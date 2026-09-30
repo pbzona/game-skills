@@ -53,3 +53,18 @@ Configure Vite with `wgslVitePlugin()` and pass the full imported `ShaderSource`
 - Shader loaders may skip device validation during bundling; run the CLI validation as a separate check.
 - Keep color-space conversions explicit and consistent. Three.js `Color.setHex` already converts sRGB inputs; applying a second sRGB-to-linear conversion can cause incorrect dark/blue tints.
 - The source skill notes that current vgpu 0.5.0 supports a broad Three.js 0.180–0.199 range; prefer the installed package's documentation/version over stale examples.
+
+## API details worth keeping close
+
+- `surface(gpu, canvas, { dpr: [1, 2] })` clamps canvas DPR; `texelSize` and `onResize()` support size-dependent uniforms. `target(gpu, { size, format })` creates an offscreen target; `color.read({ mipLevel: 0, region: "all" })` returns tightly packed row-major RGBA bytes.
+- `effect()` supplies a fullscreen vertex stage and UV input. The first `set()` call establishes binding ownership: plain JS values are library-owned and updated in place; GPU resources are caller-owned. Switching ownership later raises `VGPU-R1-OWNERSHIP-FLIP`.
+- `frame()` makes multi-pass order explicit; `frameLoop()` is the animation helper. `gpu.dispose()` matters in Node so Dawn polling stops and the process exits.
+- The standard WGSL library includes hash/PCG, Perlin and simplex noise, Voronoi, color transforms/tonemapping, math, sampling sequences and fullscreen helpers. Simplex has a steeper/larger output range than Perlin at the same scale; the source suggests roughly 0.4–0.5 input scaling when migrating comparable patterns.
+- `tslExports()` accepts only directly exported, value-returning helper functions. Function inputs are a single object keyed by authored names. Imported helpers cannot own resources; only the entry module declares bindings. Use one shared `tslExports(module)` include and select the exports for the material.
+- Bundler loaders perform resolution but do not necessarily validate against a device. Run `npx vgpu check --require-validation` separately in CI when actual device validation is mandatory.
+
+## CLI and diagnostics details
+
+`npx vgpu docs` searches its bundled documentation offline (`ls`, `cat`, `grep`, `find`, `path`, `symbols`); `npx vgpu examples` searches and reads vetted example source without executing it. `npx vgpu doctor` checks adapter/render health and suggests fixes. Use small offscreen targets for headless tests; compare pixel values with quantization tolerance and always dispose the GPU context.
+
+Typical error fixes: resolve import order/path/export/cycle problems before validation; keep resources out of imported modules; set every reflected binding with a matching value/resource; do not change a binding’s ownership type after the first `set()`; and rebuild a recorded bundle when resource identity or render signature changes.

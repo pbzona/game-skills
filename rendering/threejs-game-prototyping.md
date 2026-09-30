@@ -47,3 +47,26 @@ Expose stable test hooks for readiness and game state. Wait for the canvas/rende
 ## Related guide
 
 [`threejs-rendering-performance.md`](threejs-rendering-performance.md) contains more explicit GPU-budget defaults (frame pacing, shadow invalidation, adaptive scale and measurement methodology). Keep both: this guide emphasizes end-to-end prototype/shipping workflow.
+
+## Additional field-tested details from the current source
+
+### Vite, Three.js r186 and WebGPU
+
+- `THREE.PCFSoftShadowMap` is removed in recent WebGPURenderer builds; use `PCFShadowMap` and tune `shadow.radius` where supported. `THREE.Clock` is deprecated; prefer `THREE.Timer` (`connect(document)`, `update()`, `getDelta()`).
+- `THREE.Color.setHex`/`set()` already convert sRGB input to the linear working space. Do not call `convertSRGBToLinear()` again; double conversion creates incorrect shadow and dusk tints.
+- Three.js postprocessing uses `THREE.RenderPipeline`; bloom is available through the TSL `BloomNode` path.
+- Add/remove lights changes the light count and may recompile lit materials. Reuse a pre-existing point-light pool; intensity zero still incurs lighting cost, so visibility/state strategy must be measured.
+
+### Deterministic test hooks and headless rendering
+
+- In SwiftShader Chromium, `navigator.gpu` is exposed only on a secure origin such as localhost. WebGPU flags used by the source include `--enable-unsafe-webgpu`, `--enable-unsafe-swiftshader`, and `--use-webgpu-adapter=swiftshader`.
+- For deterministic browser testing, expose a small debug surface (fixed-step `tick`, capture, `screenOf`, setters such as time-of-day), game readiness, and stable state. Project world positions through the camera before sending real pointer input.
+- SwiftShader can run at only a few frames per second; fixed-timestep URL hooks such as `?fast` or `?dt=...` speed up timer/tween testing. Keep per-job delta values independent in delayed schedulers.
+- In some headless Chromium/WebGPU combinations, canvas presentation loses the GPU device or screenshots remain black. An offscreen render-target readback can provide evidence; handle row stride and color-space tagging correctly. On-demand frame counts alone do not prove the WebGPU backend initialized.
+- In a sandboxed iframe, guard `localStorage` with a fallback, keep a main-thread fallback if workers are blocked, and avoid `location.reload()` for UI setting changes. Loading overlays should stop intercepting pointer input after fade; rebuilding button markup during pointer down/up can cancel a click.
+
+### Game-specific edge cases
+
+For tall board-game pieces, highlighted destinations can be occluded or missed by raycasts. Draw markers without depth testing at an appropriately high render order, fade pieces between the camera and targets, and prioritize highlighted-square hits. For Vite single-HTML output, use a replacement callback when injecting minified JS so `$` sequences are not interpreted by `String.replace`; inline workers and the favicon where distribution requires a single file.
+
+For repository pushes through the GitHub integration, file payloads are text-only. Keep binary assets as base64 text and decode them in a build plugin; compose large multi-file payloads from disk rather than placing large source strings inline.

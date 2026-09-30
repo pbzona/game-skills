@@ -33,3 +33,14 @@ CPU timing under SwiftShader (especially synchronous readback) is only a proxy a
 ## How this overlaps with the prototype guide
 
 [`threejs-game-prototyping.md`](threejs-game-prototyping.md) covers controller/camera architecture, bundling and automated correctness tests. This file concentrates on steady-state render budget, GPU cost attribution and resource-frugal defaults. The source guides overlap in batching and resolution advice; their distinct operational detail is retained here.
+
+## Expanded measurement and quality-budget notes
+
+- Frame pacing and per-frame cost are separate levers. A 26 ms frame capped at 30 fps still uses roughly 80% of the frame budget; reduce unnecessary frames as well as shader work.
+- Use an EMA of frame interval and bounded render scale (about 0.5–1.0) with hysteresis. A lower internal resolution should not create oscillation between quality states.
+- CPU-side SwiftShader measurements—especially synchronous `readPixels`—are a poor proxy for device GPU cost and exaggerate some DPR effects. When available, measure `render()` with `EXT_disjoint_timer_query_webgl2` and discard samples while `GPU_DISJOINT_EXT` is true.
+- Compare each variant against interleaved full-frame baselines to reduce clock/thermal drift. Isolate one change at a time: shadow-map refresh, bloom, color grading, ground shader complexity, then postprocessing.
+- For static procedural scenes, bake repeated fragment patterns into a mipmapped render target and static skies into a cube target when the runtime cost justifies the memory/startup expense. Limit large ground planes to the visible area; use a cheaper outer surface.
+- Keep a low-cost material path for integrated/mobile GPUs. Noise octave count should be explicit and low on large scenery; use higher detail only for hero surfaces. If shader defines are used, include them in `customProgramCacheKey`.
+- Do not leave animated low-value debris casting shadows or repeatedly refresh static maps. 1024–2048 shadow maps often suffice; 4096 is rarely worthwhile for these scenes. Mark maps dirty only when relevant casters change.
+- A permanently attached light at intensity zero still costs per-pixel lighting. If reusing lights to avoid shader recompiles, measure the hidden/visible strategy and prewarm supported states rather than assuming zero intensity is free.

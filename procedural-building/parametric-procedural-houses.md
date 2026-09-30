@@ -62,3 +62,17 @@ For an old grid-based town, flood-fill contiguous block clusters, split by store
 ## Related tools
 
 The measurement-accurate architecture tools in [measurement-accurate architecture](measurement-accurate-architecture.md) are adjacent, but solve a different problem: dimensionally exact architectural plans rather than stylized procedural village generation.
+
+## More precise source patterns
+
+- Model wing adjacency as touching rectangle edges with overlap. Probe outward from wall bays to identify interior faces. A ridge entering a neighboring wing can extend by roughly half the wing depth without an end gable; an eave-side join at equal height can flip the ridge, while a taller neighbor calls for a lean-to below its wall plate.
+- For a stable gridless layout, snap bay centers to a half-unit lattice and use a stable hash for generated openings. This preserves the rest of a facade when one window is edited. Keep the shared roof-height evaluator authoritative for gables, dormers and chimneys.
+- Split wing-extrusion handles into segments around one unit (in 0.5-unit increments) and suppress handles already covered by another volume. For a partial-floor lift, split into at most three pieces; a one-unit-wide lift may read visually as a thin tower, so use wider snapping where that matters.
+- When a walkway joins a building, choose only the best-overlapping wall bay for its side door, one per link, and match deck height for upper-floor bridges. Relink from edited snapshots and roll back conflicts.
+- Drag-out walls can open where terrain paint indicates a path; widen walkable gateways to at least about 0.7 units. Drop wall legs shorter than about 0.5 units after handle edits and merge collinear legs. Sample the line for building exclusion and cache its occupied cells by world version.
+- For rock-backed structures, the source foundation activates when terrain height span under the footprint exceeds about 1.1 units; its base flares as a stepped, noisy superellipse. Keep entrances and deck stairs on the true terrain height.
+- Cache generated house parts by house data, terrain revision, and nearby walkway nodes. During manipulation, rebuild from the original snapshot and defer scatter work; one tested cove-village pass reduced whole-scene rebuild time from roughly 95 ms to 28 ms per drag.
+
+## Source pointers
+
+The source skill references the [Tiny Glade gridless-building page](https://tinyglade.wiki.gg/wiki/Gridless_building) and a [Tiny Glade Builder’s Basics community guide](https://steamcommunity.com/sharedfiles/filedetails/?id=3336822132). The implementation patterns above are paraphrased from the field-tested Three.js editor and cove-builder notes associated with this skill.
